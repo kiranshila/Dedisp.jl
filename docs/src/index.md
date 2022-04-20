@@ -6,9 +6,7 @@ CurrentModule = Dedisp
 
 Documentation for [Dedisp](https://github.com/kiranshila/Dedisp.jl).
 
-```@index
-```
-
-```@autodocs
-Modules = [Dedisp]
+```@contents
+Pages = ["api.md"]
+Depth = 3
 ```

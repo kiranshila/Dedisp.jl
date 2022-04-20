@@ -29,14 +29,12 @@ function dedisp_kernel!(output::AbstractMatrix{T}, source, plan, μ::T) where {T
     @inbounds for chan_idx in Int32(1):n_chan
         shifted_samp_idx = samp_idx + shifts[chan_idx]
         if shifted_samp_idx > n_samp
-            # Bail early and don't update output pixel
-            return nothing
-            #x += μ
+            x += μ
         else
             x += source[shifted_samp_idx, chan_idx]
         end
     end
-    
+
     @inbounds output[samp_idx, dm_idx] = x
     # Kernel is side-effecting, doesn't return
     return nothing
@@ -50,13 +48,14 @@ Dedisperses dynamic spectra `source` in-place into `output` according to the ded
 `output` has dimensions starting time samples x DM trials
 `plan` has dimensions frequency channels x DM trials
 """
-function dedisp!(output,source, plan)
+function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
+                 plan::CuArray{C,2}) where {A,B,C}
     _, n_chan = size(source)
     _, n_dm = size(plan)
     n_out_samp, _ = size(output)
 
-    # precompute mean
-    μ = Float32.(mean(source))
+    # precompute mean and match type of output
+    μ = A.(mean(source))
 
     # Compile kernel and grab capabilities
     kernel = @cuda launch = false dedisp_kernel!(output, source, plan, μ)
@@ -89,7 +88,7 @@ function dedisp_chunks_kernel!(output::AbstractArray{T,3}, source, plan, μ) whe
     chunk_idx = blockIdx().z
 
     # We need to figure out this thread's channel chunk in the source array
-    chan_idxs = ((chunk_idx-1)*n_chan_chunk+1):chunk_idx*n_chan_chunk
+    chan_idxs = ((chunk_idx - 1) * n_chan_chunk + 1):(chunk_idx * n_chan_chunk)
 
     # We schedule more threads than there are samples to get to a multiple of 32
     if samp_idx > n_samp
@@ -126,7 +125,7 @@ end
 """
 function plan_chunked_dedisp(freqs, f_max, dms, δt, n_chunk)
     n_chan = length(freqs)
-    subbands = cu(reshape(collect(1:n_chan),:,n_chunk))
+    subbands = cu(reshape(collect(1:n_chan), :, n_chunk))
     return Δt.(reshape(freqs[subbands], :, 1, n_chunk), f_max, dms', δt)
 end
 
@@ -135,9 +134,10 @@ end
 
 Identical to `dedisp!` except operates on chunked plans
 """
-function dedisp!(output, source, plan::CuArray{T,3}) where {T}
+function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
+                 plan::CuArray{C,3}) where {A,B,C}
     # Preallocate memory
-    _,n_dm,n_chunks = size(plan)
+    _, n_dm, n_chunks = size(plan)
     n_samp, n_chan = size(source)
 
     μ = mean(source)
@@ -149,7 +149,8 @@ function dedisp!(output, source, plan::CuArray{T,3}) where {T}
     blocks = (n_dm, cld(n_samp, threads), n_chunks)
 
     # Call for each chunk
-    kernel(output, source, plan, μ; threads=threads, blocks=blocks,shmem=sizeof(UInt32) * n_chan)
+    kernel(output, source, plan, μ; threads=threads, blocks=blocks,
+           shmem=sizeof(UInt32) * n_chan)
 
     # Wait for all the subband chunks to finish and reduce
     return sum(output; dims=3)

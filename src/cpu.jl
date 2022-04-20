@@ -1,7 +1,6 @@
 using LoopVectorization
 
-dedisp(pulse, output, plan)
-
+# FIXME match interface of gpu side
 function dedisp(source, freqs, dms, δt)
     n_samp, n_chan = size(source)
     n_dm = length(dms)
