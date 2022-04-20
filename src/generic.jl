@@ -34,13 +34,5 @@ Create a dedispersion plan for that covers pulses dispersed over `freqs` with a 
 """
 plan_dedisp(freqs, f_max, dms, δt) = Δt.(freqs, f_max, dms', δt)
 
-"""
-    dedisp(source,freqs,δt,DM)
-
-Dedisperse `source` for a particular DM
-"""
-function dedisp(source,freqs,δt,DM)
-    # TODO
-end
 
 export standardize, Δt, plan_dedisp

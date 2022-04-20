@@ -1,6 +1,6 @@
 using CUDA, Statistics, LLVM, LLVM.Interop
 
-function dedisp_kernel!(output::AbstractMatrix{T}, source, plan, μ::T) where {T}
+function dedisp_kernel!(output::AbstractMatrix{T}, source, plan) where {T}
     # Throw out all of our safety garuntees
     assume.(size(source) .> 0)
     assume.(size(output) .> 0)
@@ -28,11 +28,7 @@ function dedisp_kernel!(output::AbstractMatrix{T}, source, plan, μ::T) where {T
     x = zero(T)
     @inbounds for chan_idx in Int32(1):n_chan
         shifted_samp_idx = samp_idx + shifts[chan_idx]
-        if shifted_samp_idx > n_samp
-            x += μ
-        else
-            x += source[shifted_samp_idx, chan_idx]
-        end
+        x += source[shifted_samp_idx, chan_idx]
     end
 
     @inbounds output[samp_idx, dm_idx] = x
@@ -50,21 +46,22 @@ Dedisperses dynamic spectra `source` in-place into `output` according to the ded
 """
 function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
                  plan::CuArray{C,2}) where {A,B,C}
-    _, n_chan = size(source)
+    n_samp, n_chan = size(source)
     _, n_dm = size(plan)
     n_out_samp, _ = size(output)
 
-    # precompute mean and match type of output
-    μ = A.(mean(source))
+    # Make sure the given plan won't OOB
+    maxshift = maximum(plan)
+    @assert maxshift <= (n_samp - n_out_samp) "The maximum DM shfit of the maximum output time shift must fall within the input window"
 
     # Compile kernel and grab capabilities
-    kernel = @cuda launch = false dedisp_kernel!(output, source, plan, μ)
+    kernel = @cuda launch = false dedisp_kernel!(output, source, plan)
     config = launch_configuration(kernel.fun)
     threads = config.threads
     blocks = (n_dm, cld(n_out_samp, threads))
 
     # Run kernel
-    kernel(output, source, plan, μ; threads=threads, blocks=blocks,
+    kernel(output, source, plan; threads=threads, blocks=blocks,
            shmem=sizeof(UInt32) * n_chan)
     return output
 end
@@ -132,15 +129,15 @@ end
 """
     dedisp!(output, source, chunked_plan)
 
-Identical to `dedisp!` except operates on chunked plans
+Identical to `dedisp!` except operates on chunked plans. Returned is the reduced output.
 """
-function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
+function dedisp!(output::CuArray{A,3}, source::CuArray{B,2},
                  plan::CuArray{C,3}) where {A,B,C}
     # Preallocate memory
     _, n_dm, n_chunks = size(plan)
     n_samp, n_chan = size(source)
 
-    μ = mean(source)
+    μ = A(mean(source))
 
     # Build kernel
     kernel = @cuda launch = false dedisp_chunks_kernel!(output, source, plan, μ)
