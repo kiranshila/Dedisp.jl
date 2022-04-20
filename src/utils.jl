@@ -3,7 +3,7 @@
 
 Transform matrix `A` into units of signal to noise ratio along optional dimension `dim`, defaulting to the first dimension.
 """
-function standardize(A;dims=1)
+function standardize(A; dims=1)
     μ = mean(A; dims=dims)
     σ = std(A; mean=μ, dims=dims)
     return @. (A - μ) / σ
@@ -33,3 +33,5 @@ end
 Create a dedispersion plan for that covers pulses dispersed over `freqs` with a maximum of `f_max` in MHz over all possible DMs in `dms` with source time resolution `δt`
 """
 plan_dedisp(freqs, f_max, dms, δt) = Δt.(freqs, f_max, dms', δt)
+
+export standardize, Δt, plan_dedisp

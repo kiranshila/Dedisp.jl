@@ -156,4 +156,4 @@ function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
     return sum(output; dims=3)
 end
 
-export dedisp!, plan_dedisp, plan_chunked_dedisp
+export dedisp!, plan_chunked_dedisp
