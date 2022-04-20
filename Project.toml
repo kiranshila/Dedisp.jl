@@ -3,6 +3,12 @@ uuid = "7bc0bc3a-6b35-4b25-97f3-85089611dfa9"
 authors = ["Kiran Shila <me@kiranshila.com> and contributors"]
 version = "0.1.0"
 
+[deps]
+CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
+LLVM = "929cbde3-209d-540e-8aea-75f648917ca0"
+LoopVectorization = "bdcacae8-1622-11e9-2a5c-532679323890"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
+
 [compat]
 julia = "1.6"
 
