@@ -44,9 +44,9 @@ end
     dedisp!(output,source,plan)
 
 Dedisperses dynamic spectra `source` in-place into `output` according to the dedispersion plan `plan`.
-`source` has dimensions time samples x frequency channels
-`output` has dimensions starting time samples x DM trials
-`plan` has dimensions frequency channels x DM trials
+- `source` has dimensions time samples x frequency channels
+- `output` has dimensions starting time samples x DM trials
+- `plan` has dimensions frequency channels x DM trials
 """
 function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
                  plan::CuArray{C,2}) where {A,B,C}
