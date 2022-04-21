@@ -1,6 +1,6 @@
 using CUDA, Statistics, LLVM, LLVM.Interop
 
-function dedisp_kernel!(output::AbstractMatrix{T}, source, plan) where {T}
+function dedisp_kernel!(output::AbstractMatrix{T}, source, plan, μ) where {T}
     # Throw out all of our safety garuntees
     assume.(size(source) .> 0)
     assume.(size(output) .> 0)
@@ -28,7 +28,11 @@ function dedisp_kernel!(output::AbstractMatrix{T}, source, plan) where {T}
     x = zero(T)
     @inbounds for chan_idx in Int32(1):n_chan
         shifted_samp_idx = samp_idx + shifts[chan_idx]
-        x += source[shifted_samp_idx, chan_idx]
+        if shifted_samp_idx > n_samp
+            x += μ
+        else
+            x += source[shifted_samp_idx, chan_idx]
+        end
     end
 
     @inbounds output[samp_idx, dm_idx] = x
@@ -50,18 +54,17 @@ function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
     _, n_dm = size(plan)
     n_out_samp, _ = size(output)
 
-    # Make sure the given plan won't OOB
-    maxshift = maximum(plan)
-    @assert maxshift <= (n_samp - n_out_samp) "The maximum DM shfit of the maximum output time shift must fall within the input window"
+    # Precompute mean
+    μ = Float32(mean(source))
 
     # Compile kernel and grab capabilities
-    kernel = @cuda launch = false dedisp_kernel!(output, source, plan)
+    kernel = @cuda launch = false dedisp_kernel!(output, source, plan, μ)
     config = launch_configuration(kernel.fun)
     threads = config.threads
     blocks = (n_dm, cld(n_out_samp, threads))
 
     # Run kernel
-    kernel(output, source, plan; threads=threads, blocks=blocks,
+    kernel(output, source, plan, μ; threads=threads, blocks=blocks,
            shmem=sizeof(UInt32) * n_chan)
     return output
 end
