@@ -48,9 +48,8 @@ Dedisperses dynamic spectra `source` in-place into `output` according to the ded
 - `output` has dimensions starting time samples x DM trials
 - `plan` has dimensions frequency channels x DM trials
 """
-function dedisp!(output::CuArray{A,2}, source::CuArray{B,2},
-                 plan::CuArray{C,2}) where {A,B,C}
-    n_samp, n_chan = size(source)
+function dedisp!(output::CuArray{A,2}, source, plan::CuArray{C,2}) where {A,C}
+    _, n_chan = size(source)
     _, n_dm = size(plan)
     n_out_samp, _ = size(output)
 
@@ -134,8 +133,8 @@ end
 
 Identical to `dedisp!` except operates on chunked plans. Returned is the reduced output.
 """
-function dedisp!(output::CuArray{A,3}, source::CuArray{B,2},
-                 plan::CuArray{C,3}) where {A,B,C}
+function dedisp!(output::CuArray{A,3}, source,
+                 plan::CuArray{C,3}) where {A,C}
     # Preallocate memory
     _, n_dm, n_chunks = size(plan)
     n_samp, n_chan = size(source)
