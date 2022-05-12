@@ -65,7 +65,9 @@ function dedisp!(output::CuArray{A,2}, source, plan::CuArray{C,2}) where {A,C}
     # Run kernel
     kernel(output, source, plan, μ; threads=threads, blocks=blocks,
            shmem=sizeof(UInt32) * n_chan)
-    return output
+
+    # Normalize
+    return output ./ n_chan
 end
 
 # Source is n_samp * n_chan

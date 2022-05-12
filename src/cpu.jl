@@ -1,19 +1,17 @@
 using LoopVectorization
 
-# FIXME match interface of gpu side
-function dedisp(source, freqs, dms, δt)
+circmod(x,y) = mod(x-1,y) + 1
+
+function dedisp(source::AbstractMatrix{T}, plan) where {T <: Real}
     n_samp, n_chan = size(source)
-    n_dm = length(dms)
-    f_max = maximum(freqs)
-    output = zeros(Float32, n_samp, n_dm)
+    _, n_dm = size(plan)
+    output = zeros(T, n_samp, n_dm)
+    μ = mean(source)
     @tturbo for i in 1:n_dm
-        for j in 1:n_chan
-            for k in 1:n_samp
-                dm = dms[i]
-                f = freqs[j]
-                dt = Δt(f, f_max, dm, δt, n_samp)
-                source_idx = circmod(dt + k - 1, n_samp)
-                output[k, i] += source[source_idx, j]
+        for k in 1:n_samp
+            for j in 1:n_chan
+                shifted_samp_idx = circmod(k + plan[j,i],n_samp)
+                output[k, i] += source[shifted_samp_idx, j] / n_samp
             end
         end
     end
